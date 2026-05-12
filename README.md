@@ -12,5 +12,5 @@
 
 - The script prices exotic instruments, such as digital calls and puts, via finite differences on Vanna-Volga-adjusted vanilla prices, creating a foundation for extending the framework to other FX exotic options.
 
-- Provides smile and volatility surface visualization tools to inspect the implied volatility structure induced by the Vanna–Volga pricing adjustment.
+- Provides smile and volatility surface visualization plots to analyse the implied volatility structure induced by the Vanna–Volga pricing adjustment.
 
