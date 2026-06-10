@@ -135,8 +135,7 @@ This keeps memory bounded while making repeated strike pricing fast.
 
 
 # Adaptive Finite Differences
-Finite differences approximate derivatives by perturbing an input and observing
-how the output changes.
+Finite differences approximate derivatives by perturbing an input and observing how the output changes.
 
 For a first derivative:
 $$f'(x) \approx\frac{f(x+h)-f(x-h)}{2h}$$
@@ -320,5 +319,3 @@ Because the vanilla prices are already Vanna-Volga adjusted, the digital prices 
 10. Cache the target-strike weights.
 11. Price vanilla calls and puts with the VV correction.
 12. Price digital calls and puts by finite differences on VV vanilla prices.
-13. Optionally plot smile or surface diagnostics.
-
