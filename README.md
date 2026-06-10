@@ -84,12 +84,14 @@ So, once a market slice has been used once, the expensive pillar Greek matrix is
 stored and reused.
 
 Mathematically, the cached matrix is:
-$$A = \begin{bmatrix} 
-\text{Vega}_A & \text{Vega}_{RR} & \text{Vega}_{BF} \\ 
-\text{Vanna}_A & \text{Vanna}_{RR} & \text{Vanna}_{BF} \\ 
-\text{Volga}_A & \text{Volga}_{RR} & \text{Volga}_{BF} 
+```math
+A =
+\begin{bmatrix}
+\text{Vega}_A & \text{Vega}_{RR} & \text{Vega}_{BF} \\
+\text{Vanna}_A & \text{Vanna}_{RR} & \text{Vanna}_{BF} \\
+\text{Volga}_A & \text{Volga}_{RR} & \text{Volga}_{BF}
 \end{bmatrix}
-$$
+```
 
 ### Strike Weight Cache
 Each slice cache also stores:
