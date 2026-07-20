@@ -33,7 +33,7 @@ The engine includes:
 
 **Python and C++ responsibilities**
 
-Python manages the public API and the higher-level pricing workflow. It is
+Python manages the public API and the higher-level pricing workflow. It's
 responsible for:
 
 - defining smile quotes and selecting the FX delta convention;
@@ -43,8 +43,8 @@ responsible for:
 - generating the smile, volatility-surface and Greek-profile plots;
 - running the demonstration workflow and Python integration tests.
 
-C++ implements the quantitative calculations exposed to Python through the
-`vv_cpp` extension. It is responsible for:
+C++ implements the calculations exposed to Python through the
+`vv_cpp` extension. It's responsible for:
 
 - Garman-Kohlhagen pricing, deltas and implied-volatility inversion;
 - converting delta quotes into 25P, ATM and 25C market strikes;
