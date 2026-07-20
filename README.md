@@ -1,321 +1,314 @@
-# Repository Description
+# Hybrid Python/C++ Vanna-Volga FX Pricer
 
-- The repository provides a modular Python script to price exotic FX options by reconstructing the volatility smile from sparse market quotes such as ATM volatility, 25-delta risk reversals and butterflies.
+This project is a hybrid Python/C++ engine for pricing FX options with the
+**Vanna-Volga** method. It starts from ATM volatility, 25-delta risk reversal
+and butterfly quotes, converts the market deltas into strikes, constructs the
+Vanna-Volga replication portfolio, and uses the resulting smile adjustment to
+price vanilla and digital options.
 
-- Reconstructs the FX volatility smile from sparse market inputs and applies Vanna–Volga adjustments to Black–Scholes prices. Building on the calibrated smile, the framework is extended to exotic payoff foundations, pricing digital options via finite differences on Vanna–Volga adjusted vanilla prices.
+The engine includes:
 
-- Computes Vega, Vanna and Volga using adaptive finite differences with Richardson extrapolation, including boundary-aware one-sided schemes for improved numerical stability.
+- validation of FX market inputs and reconstruction of the 25P and 25C wing
+  volatilities from ATM, risk-reversal and butterfly quotes;
+- Garman-Kohlhagen pricing, FX delta calculation and implied-volatility inversion;
+- support for spot premium-excluded, forward premium-excluded and spot
+  premium-included delta conventions;
+- numerical inversion from 25-delta quotes to their corresponding market
+  strikes;
+- analytic Vega, Vanna and Volga calculations in the compiled C++ backend;
+- construction and inversion of the 3-by-3 Vanna-Volga Greek matrix, including
+  condition-number, residual and backward-error diagnostics;
+- precomputation of the pillar volatility premiums and Greek matrix for each
+  market slice, avoiding repeated slice-level calculations;
+- Vanna-Volga pricing of vanilla calls and puts across individual strikes or
+  strike arrays;
+- pricing of digital calls and puts through centered strike differences and
+  Richardson extrapolation;
+- diagnostics for vanilla price bounds, digital price bounds, put-call parity,
+  digital parity, monotonicity and convexity;
+- an independent finite-difference and Richardson implementation used to
+  validate the analytic C++ Greeks;
+- visualization of reconstructed smiles, the 3D implied-volatility surface and
+  2D Vega, Vanna and Volga profiles.
 
-- The circular dependency between deltas and strikes is handled through bracket scanning and a robust bisection algorithm.
+**Python and C++ responsibilities**
 
-- Includes a lightweight caching system that stores per-slice Greek matrices and strike-dependent Vanna–Volga weights, reducing repeated computations when pricing multiple options across the same market slice.
+Python manages the public API and the higher-level pricing workflow. It is
+responsible for:
 
-- The script prices exotic instruments, such as digital calls and puts, via finite differences on Vanna-Volga-adjusted vanilla prices, creating a foundation for extending the framework to other FX exotic options.
+- defining smile quotes and selecting the FX delta convention;
+- building pricing applications and market slices through the C++ interface;
+- exposing single-strike and batch pricing operations;
+- organizing arbitrage, bounds and parity diagnostics;
+- generating the smile, volatility-surface and Greek-profile plots;
+- running the demonstration workflow and Python integration tests.
 
-- Provides smile and volatility surface visualization plots to analyse the implied volatility structure induced by the Vanna–Volga pricing adjustment.
+C++ implements the quantitative calculations exposed to Python through the
+`vv_cpp` extension. It is responsible for:
 
+- Garman-Kohlhagen pricing, deltas and implied-volatility inversion;
+- converting delta quotes into 25P, ATM and 25C market strikes;
+- computing analytic Vega, Vanna and Volga;
+- constructing, checking and solving the Vanna-Volga Greek system;
+- precomputing pillar premiums and applying the Vanna-Volga correction;
+- pricing vanilla and digital options, including Richardson extrapolation for
+  strike derivatives;
+- evaluating pricing bounds, parity, monotonicity and convexity;
+- computing the independent finite-difference Greeks used by the validation
+  tests.
 
-# Caching System
-Instead of doing the same expensive calculation again, the script first checks whether the result is already available in memory.
+In short, Python organizes the workflow and visualization, while C++ performs
+the pricing, Greek, linear-algebra and numerical-diagnostic calculations.
 
-In practical terms:
-- if the result is already in the cache, this is a **cache hit**;
-- if the result is not in the cache, this is a **cache miss**;
-- on a cache miss, the script computes the result and stores it for later use.
+**Requirements**
 
-This matters here because Vanna-Volga pricing repeatedly needs expensive Greek calculations and 3-by-3 linear solves. If we price many strikes on the same market slice, most of the structural information is the same. The script can therefore reuse it instead of rebuilding everything from zero.
+- Python 3.11 or newer;
+- CMake 3.20 or newer;
+- a C++20 compiler.
 
-The caching system is implemented inside:
-
-```python
-class VannaVolgaPricer
-```
-
-Conceptually, the script caches two things:
-
-1. the Greek matrix for a market slice;
-2. the Vanna-Volga weights for target strikes already priced on that slice.
-
-### Why Caching Matters
-For each target strike \(K\), pricing requires:
-1. computing the Greek vector at the target strike,
-2. solving a 3-by-3 linear system,
-3. computing Black-Scholes prices at ATM, 25P, and 25C volatilities.
-
-For each market slice, the pillar Greek matrix is even more expensive because it
-requires Greeks at:
+## Structure
 
 ```text
-K_25P
-K_ATM
-K_25C
+Hybrid/
+|-- CMakeLists.txt
+|-- pyproject.toml
+|-- run_demo.py
+|-- src/cpp/
+|   |-- include/vv/
+|   |-- src/
+|   `-- bindings/pybind_module.cpp
+|-- vv_pricer/
+|   |-- application.py
+|   |-- cpp_engine.py
+|   |-- domain.py
+|   |-- market.py
+|   |-- pricer.py
+|   |-- plotting.py
+|   `-- demo.py
+`-- tests/
+    |-- cpp/
+    `-- python/
 ```
 
-Each Greek is itself built from several Black-Scholes calls. Vanna is especially
-expensive because it is a derivative of Vega, and Vega is already numerical.
+## Build
 
-### Slice Cache
+From this directory:
 
-The script stores one cache entry per `MarketSlice`:
-
-```python
-self.slice_caches: dict[MarketSlice, SliceCache] = {}
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 ```
 
-Each cache entry contains:
+The editable installation compiles the `vv_cpp` extension with CMake and a
+C++20 compiler.
+
+## Run
+
+```bash
+source .venv/bin/activate
+python run_demo.py
+```
+
+Other conventions:
+
+```bash
+python run_demo.py FWD_PREM_EXCLUDED
+python run_demo.py SPOT_PREM_INCLUDED --plots
+```
+
+The `--plots` view includes:
+
+- the reconstructed Vanna-Volga smile;
+- a 3D reconstructed VV volatility surface with its market pillars;
+- 2D Vega, Vanna and Volga profiles for each maturity.
+
+The surface uses log-moneyness $\log(K/F)$ and recovers continuous implied
+volatilities from VV prices. Every maturity spans its complete 25P-to-ATM-to-25C
+interval, and the quoted market pillars are shown directly on the surface.
+
+## Python API
 
 ```python
-SliceCache(
-    atm_rr_bf_greek_matrix=...,
-    weights_by_strike=...
+from vv_pricer import DeltaConvention, SmileQuote, build_application
+
+application = build_application(DeltaConvention.SPOT_PREM_EXCLUDED)
+
+market_slice = application.builder.build(
+    1.085,
+    0.03,
+    0.02,
+    SmileQuote(T=0.5, sigma_atm=0.10, rr25=-0.02, bf25=0.01),
+)
+
+call = application.pricer.price_vanilla(market_slice, True, 1.10)
+put = application.pricer.price_vanilla(market_slice, False, 1.10)
+digital_call = application.pricer.price_digital_call(market_slice, 1.10)
+
+put_call_check = application.pricer.check_put_call_parity(
+    market_slice,
+    1.10,
 )
 ```
 
-The matrix:
+## Smile Quotes
 
-```python
-atm_rr_bf_greek_matrix
-```
-
-depends only on the market slice. It does not depend on the target strike and it
-does not depend on whether we are pricing a call or a put.
-
-So, once a market slice has been used once, the expensive pillar Greek matrix is
-stored and reused.
-
-Mathematically, the cached matrix is:
-```math
-A =
-\begin{bmatrix}
-\text{Vega}_A & \text{Vega}_{RR} & \text{Vega}_{BF} \\
-\text{Vanna}_A & \text{Vanna}_{RR} & \text{Vanna}_{BF} \\
-\text{Volga}_A & \text{Volga}_{RR} & \text{Volga}_{BF}
-\end{bmatrix}
-```
-
-### Strike Weight Cache
-Each slice cache also stores:
-
-```python
-weights_by_strike: OrderedDict[int, tuple[float, float, float]]
-```
-
-This is a strike-level cache. If the script prices the same target strike again,
-it can reuse the Vanna-Volga pillar weights instead of recomputing:
-
-```text
-target Greek vector
-3-by-3 solve
-ATM/RR/BF to pillar conversion
-```
-
-The strike key is:
-$$\text{key}(K) = \text{round}(K \times 10^8)$$
-
-This avoids using raw floating-point numbers as dictionary keys.
-
-The cached value is:
-$$\left(w_{25P}, w_{\text{ATM,pillar}}, w_{25C}\right)$$
-
-
-### LRU Eviction
-The script caps each strike cache:
-
-```python
-MAX_STRIKE_CACHE_PER_SLICE = 2048
-```
-
-The `OrderedDict` behaves like a lightweight LRU cache:
-
-- on cache hit, the key is moved to the end with `move_to_end(key)`;
-- when the cache exceeds the maximum size, the oldest item is removed with
-  `popitem(last=False)`.
-
-This keeps memory bounded while making repeated strike pricing fast.
-
-
-# Adaptive Finite Differences
-Finite differences approximate derivatives by perturbing an input and observing how the output changes.
-
-For a first derivative:
-$$f'(x) \approx\frac{f(x+h)-f(x-h)}{2h}$$
-
-For a second derivative:
-$$f''(x) \approx \frac{f(x+h)-2f(x)+f(x-h)}{h^2}$$
-
-
-The central numerical problem is choosing a good bump size $h$.
-* if $h$ is too large, the derivative is too coarse because the price is measured over a wide interval. This is called **truncation error**.
-* if $h$ is too small, the two prices being subtracted become almost identical: $f(x+h) \approx f(x-h)$
-
-The subtraction can then lose numerical precision. This is called **floating-point cancellation** or **round-off error**.
-
-The script therefore starts from **scale-aware bumps**. This means the initial bump is proportional to the variable being bumped, but it also has a minimum floor so it never becomes numerically meaningless.
-
-For volatility Greeks, such as Vega and Volga, the bumped variable is $\sigma$:
-$$h_\sigma = \max(5 \times 10^{-6}, 0.005|\sigma|)$$
-
-The term $0.005|\sigma|$ means the initial volatility bump is 0.5% of the current
-volatility level. The term $5 \times 10^{-6}$ is a minimum floor.
-
-<br>
-
-For the spot bump used in Vanna, the bumped variable is $S$:
-$$h_S = \max(10^{-6}, 10^{-4}|S|)$$
-
-The term $10^{-4}|S|$ means the initial spot bump is 0.01% of the current spot level. The term $10^{-6}$ is a minimum floor.
-
-After choosing the initial bump, the script refines it by repeatedly halving it:
-$$h_{n+1} = \frac{h_n}{2}$$
-
-So the sequence of tested bumps is:
-$$h_0,\quad \frac{h_0}{2},\quad \frac{h_0}{4},\quad \frac{h_0}{8},\quad \ldots$$
-
-
-The loop does not refine forever. The maximum number of refinements is:
-
-```python
-MAX_REFINEMENTS = 5
-```
-
-This means the script can test at most:
+The 25-delta wing volatilities are reconstructed from ATM volatility, risk
+reversal and butterfly:
 
 $$
-h_0,\quad
-\frac{h_0}{2},\quad
-\frac{h_0}{4},\quad
-\frac{h_0}{8},\quad
-\frac{h_0}{16},\quad
-\frac{h_0}{32}
+\sigma_{25P}=\sigma_{ATM}+BF_{25}-\frac{RR_{25}}{2},
 $$
 
-The value `5` is a practical numerical compromise. It gives the derivative
-enough chances to stabilize, but it avoids making $h$ so small that round-off
-error dominates or the calculation becomes unnecessarily expensive.
-
-### Stability Test
-
-The loop stops when two consecutive estimates are close enough:
-
 $$
-|D_n - D_{n-1}|
-\le
-\epsilon_{\text{abs}}
-+
-\epsilon_{\text{rel}}
-\max(1, |D_n|, |D_{n-1}|)
+\sigma_{25C}=\sigma_{ATM}+BF_{25}+\frac{RR_{25}}{2}.
 $$
 
-The script uses:
+The C++ engine validates that both wing volatilities are finite and positive.
 
-```python
-ABS_TOL = 1e-10
-REL_TOL = 5e-4
+## Analytic Greeks
+
+For
+
+$$
+F=S e^{(r_d-r_f)T},
+\qquad
+d_1=\frac{\log(F/K)+\frac12\sigma^2T}{\sigma\sqrt{T}},
+\qquad
+d_2=d_1-\sigma\sqrt{T},
+$$
+
+the production engine uses:
+
+$$
+\operatorname{Vega}=S e^{-r_fT}\phi(d_1)\sqrt{T},
+$$
+
+$$
+\operatorname{Vanna}=-e^{-r_fT}\phi(d_1)\frac{d_2}{\sigma},
+$$
+
+$$
+\operatorname{Volga}=\operatorname{Vega}\frac{d_1d_2}{\sigma}.
+$$
+
+The test suite compares these formulas with a separate C++ implementation
+based on finite differences and Richardson extrapolation. The numerical Greeks
+are validation code only and are not used by the pricer. Their refinement starts
+from bumps equal to 25% of spot and volatility, then halves both steps while
+balancing truncation and floating-point errors.
+
+## Prepared Market Slice
+
+Building a market slice performs the expensive slice-level work once:
+
+- construction of the ATM, 25P and 25C strikes;
+- calculation of the three pillar Greek vectors;
+- construction and inversion of the 3-by-3 Vanna-Volga matrix;
+- condition-number analysis;
+- calculation of the fixed 25P and 25C volatility premiums.
+
+The prepared slice owns this data. Pricing a new strike only computes its
+analytic Greek vector and multiplies it by the stored inverse matrix:
+
+$$
+w(K)=A^{-1}g(K).
+$$
+
+This replaces the previous general-purpose cache. There are no floating-point
+cache keys, eviction rules or capacity parameters.
+
+The Vanna-Volga price is:
+
+$$
+V_{VV}(K)=V_{ATM}(K)
++w_{25P}(K)\Delta V_{25P}
++w_{25C}(K)\Delta V_{25C},
+$$
+
+where each pillar premium is computed once at its own market strike:
+
+$$
+\Delta V_i=V_{GK}(K_i,\sigma_i)-V_{GK}(K_i,\sigma_{ATM}).
+$$
+
+## Digital Pricing
+
+Digital prices are strike derivatives of the complete Vanna-Volga price:
+
+$$
+D_{call}(K)=-\frac{\partial C_{VV}}{\partial K},
+\qquad
+D_{put}(K)=\frac{\partial P_{VV}}{\partial K}.
+$$
+
+The implementation uses the fixed relative bump
+
+$$
+h=10^{-4}K,
+$$
+
+which is one basis point of strike. It computes two centered derivatives:
+
+$$
+D(h)=\frac{V(K+h)-V(K-h)}{2h},
+$$
+
+$$
+D(h/2)=\frac{V(K+h/2)-V(K-h/2)}{h},
+$$
+
+and applies Richardson once:
+
+$$
+D_{rich}=\frac{4D(h/2)-D(h)}{3}.
+$$
+
+The bump is a transparent numerical heuristic. A deterministic flat-smile test
+compares the result with analytic Garman-Kohlhagen digitals.
+
+## Diagnostics
+
+For strike grids, the engine checks:
+
+- theoretical call and put price bounds;
+- digital bounds between zero and the domestic discount factor;
+- call and put monotonicity;
+- convexity using secant slopes on non-uniform grids.
+
+It also provides explicit single-strike checks for:
+
+$$
+C(K)-P(K)=e^{-r_dT}(F-K),
+$$
+
+$$
+D_{call}(K)+D_{put}(K)=e^{-r_dT}.
+$$
+
+These checks are called without tolerance parameters. Small floating-point
+protections are handled automatically inside C++.
+
+Each weight calculation exposes the matrix condition number, raw residual and
+normalized backward error.
+
+## Tests
+
+Python integration tests:
+
+```bash
+python -m pytest -q
 ```
 
-### Boundary Protection
+C++ tests:
 
-The script prevents invalid numerical bumps by enforcing:
+```bash
+cmake -S . -B build/cmake \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DVV_BUILD_PYTHON=OFF \
+  -DVV_BUILD_TESTS=ON
 
-```python
-MIN_SIGMA = 1e-8
-MIN_SPOT = 1e-12
-MIN_STEP = 1e-8
+cmake --build build/cmake --parallel
+ctest --test-dir build/cmake --output-on-failure
 ```
-
-If a symmetric scheme would cross the lower bound, the script uses a one-sided scheme.
-
-For the first derivative near a lower bound:
-$$f'(x) \approx \frac{-3f(x)+4f(x+h)-f(x+2h)}{2h}$$
-
-For the second derivative near a lower bound:
-$$f''(x) \approx \frac{f(x)-2f(x+h)+f(x+2h)}{h^2} $$
-
-
-# Richardson Extrapolation
-
-Richardson extrapolation improves a finite-difference estimate by combining two estimates computed with different step sizes.
-
-Assume:
-$$D(h)=D^* + C h^p + O(h^{p+1})$$
-
-where:
-- $D(h)$ is the derivative estimate using step \(h\),
-- $D^*$ is the true derivative,
-- $p$ is the convergence order.
-
-The same derivative estimated with half the step is:
-$$D(h/2)=D^* + C\left(\frac{h}{2}\right)^p + O(h^{p+1})$$
-
-Eliminating the leading error term gives:
-$$D_{\text{rich}}=\frac{2^pD(h/2)-D(h)}{2^p-1}$$
-
-
-For central first derivatives, the order is $p = 2$ so:
-$$D_{\text{rich}}=\frac{4D(h/2)-D(h)}{3}$$
-
-For central second derivatives, the order is also $p = 2$.
-
-
-Near a lower boundary, we use a boundary-aware one-sided scheme to maintain numerical stability for the second derivative, so the order is $p = 1$:
-$$D_{\text{rich}}=2D(h/2)-D(h)$$
-
-
-
-# Greeks Computation
-
-### Vega
-Vega is the first derivative with respect to volatility $\frac{\partial V}{\partial \sigma}$. The finite-difference estimate is:
-$$\text{Vega} \approx \frac{V(\sigma+h_\sigma)-V(\sigma-h_\sigma)}{2h_\sigma}$$
-
-
-### Volga
-Volga is the second derivative with respect to volatility $\frac{\partial^2 V}{\partial \sigma^2}$. The finite-difference estimate is:
-$$\text{Volga}\approx\frac{V(\sigma+h_\sigma)-2V(\sigma)+V(\sigma-h_\sigma)}{h_\sigma^2}$$
-
-
-### Vanna
-Vanna is implemented as the spot derivative of Vega $\frac{\partial \text{Vega}}{\partial S}$. The finite-difference estimate is:
-$$\text{Vanna}\approx \frac{\text{Vega}(S+h_S)-\text{Vega}(S-h_S)}{2h_S}$$
-
-
-Vanna is the most computationally expensive Greek to compute. Because it measures how Vega changes with respect to the underlying asset, every single Vanna calculation requires nested finite-difference loops.
-
-
-# Digital Options
-Digital options are priced from Vanna-Volga adjusted vanilla prices.
-
-For a digital call:
-$$\text{DigitalCall}(K)=-\frac{\partial C(K)}{\partial K}$$
-
-The finite-difference approximation is:
-$$\text{DigitalCall}(K) \approx \frac{C(K-\epsilon)-C(K+\epsilon)}{2\epsilon}$$
-
-For a digital put:
-$$\text{DigitalPut}(K) = \frac{\partial P(K)}{\partial K}$$
-
-The finite-difference approximation is:
-$$\text{DigitalPut}(K) \approx \frac{P(K+\epsilon)-P(K-\epsilon)}{2\epsilon}$$
-
-The strike bump is:
-$$\epsilon = \max(10^{-6}, 10^{-4}K)$$
-
-Because the vanilla prices are already Vanna-Volga adjusted, the digital prices inherit the smile correction.
-
-
-
-
-# End-To-End Flow
-1. Parse the selected delta convention.
-2. Define spot, domestic rate, foreign rate, maturity, ATM vol, RR, and BF.
-3. Build 25P and 25C volatilities from ATM/RR/BF.
-4. Convert 25-delta quotes into strikes.
-5. Build a `MarketSlice`.
-6. Compute or retrieve the cached pillar Greek matrix.
-7. Compute target-strike Greeks using adaptive finite differences and
-   Richardson extrapolation.
-8. Solve the 3-by-3 Vanna-Volga weight system.
-9. Convert ATM/RR/BF weights into pillar weights.
-10. Cache the target-strike weights.
-11. Price vanilla calls and puts with the VV correction.
-12. Price digital calls and puts by finite differences on VV vanilla prices.
