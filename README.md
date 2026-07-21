@@ -1,10 +1,7 @@
 # Hybrid Python/C++ Vanna-Volga FX Pricer
 
-This project is a hybrid Python/C++ engine for pricing FX options with the
-**Vanna-Volga** method. It starts from ATM volatility, 25-delta risk reversal
-and butterfly quotes, converts the market deltas into strikes, constructs the
-Vanna-Volga replication portfolio, and uses the resulting smile adjustment to
-price vanilla and digital options.
+This repository is a hybrid Python/C++ engine for pricing FX options with the **Vanna-Volga** method. It starts from spot, domestic and foreign interest rates, and market ATM, 25-delta Risk-Reversal and Butterfly quotes. It reconstructs the 25P and 25C wing volatilities, converts delta quotes into strikes under standard FX delta conventions, and computes analytic Vega, Vanna and Volga at the three market pillars. 
+Then solves the 3-by-3 Vanna-Volga replication system, applies the resulting smile correction to Garman-Kohlhagen vanilla prices, and derives digital-option prices through strike differentiation and Richardson extrapolation. The final workflow produces vanilla and digital prices, reconstructed implied-volatility smiles and surfaces, and diagnostics for pricing bounds, parity, monotonicity, convexity and numerical stability.
 
 The engine includes:
 
