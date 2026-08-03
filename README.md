@@ -24,7 +24,7 @@ The engine includes:
   Richardson extrapolation;
 - diagnostics for vanilla price bounds, digital price bounds, put-call parity,
   digital parity, monotonicity and convexity;
-- an independent finite-difference and Richardson implementation used to
+- an independent finite-difference and Richardson extrapolation used to
   validate the analytic C++ Greeks;
 - visualization of reconstructed smiles, the 3D implied-volatility surface and
   2D Vega, Vanna and Volga profiles.
