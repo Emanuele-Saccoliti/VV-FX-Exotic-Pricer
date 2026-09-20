@@ -16,7 +16,7 @@ PYTHON_BIN=.venv/bin/python bash scripts/check_baseline.sh
 ```
 
 The command installs the C++ extension, runs the Python tests, builds and runs
-the two C++ tests, and runs the CLI demo. `build/` and `.venv/` are generated
+the two C++ tests, and runs the CLI demo. `_generated/` and `.venv/` are generated
 and ignored. The script requires the repository's tracked `README.md`, which
 is referenced by `pyproject.toml` during package installation.
 

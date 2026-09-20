@@ -4,6 +4,7 @@
 # Python environments and package outputs.
 /.venv/
 /venv/
+/_generated/
 /build/
 /dist/
 /_skbuild/
@@ -24,7 +25,7 @@ htmlcov/
 .idea/
 .vscode/
 
-# CMake outputs if configured outside build/.
+# CMake outputs if configured outside _generated/.
 CMakeCache.txt
 CMakeFiles/
 compile_commands.json
