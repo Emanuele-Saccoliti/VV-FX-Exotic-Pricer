@@ -1,0 +1,102 @@
+{
+  "provenance": {
+    "source_commit": "5267287ecc55dc781b4f9e4a91cec3a2c9be2a76",
+    "source": "Unmodified v2 C++/pybind11 engine through the public Python facade",
+    "captured_on": "2026-09-21",
+    "independent_reference": false
+  },
+  "input": {
+    "spot": 1.085,
+    "domestic_rate": 0.03,
+    "foreign_rate": 0.02,
+    "maturity_years": 0.5,
+    "sigma_atm_decimal": 0.1,
+    "rr25_decimal": -0.02,
+    "bf25_decimal": 0.01,
+    "evaluation_strike": 1.1
+  },
+  "absolute_tolerances": {
+    "volatility": 1e-12,
+    "strike": 2e-10,
+    "weight": 2e-09,
+    "vanilla_price": 2e-10,
+    "digital_price": 2e-08
+  },
+  "cases": [
+    {
+      "convention": "SPOT_PREM_EXCLUDED",
+      "expected": {
+        "sigma_25p": 0.12,
+        "sigma_atm": 0.1,
+        "sigma_25c": 0.1,
+        "strike_25p": 1.034188186394048,
+        "strike_atm": 1.09043858513245,
+        "strike_25c": 1.1459294004179794,
+        "weights_atm_rr_bf": [
+          0.9993557073698586,
+          0.1103021841047656,
+          0.042517855818153046
+        ],
+        "weights_pillars": [
+          -0.08904325619568908,
+          0.9568378515517055,
+          0.13156111201384213
+        ],
+        "vv_call": 0.02553543858901648,
+        "vv_put": 0.034954502534538266,
+        "digital_call": 0.46398806106814816,
+        "digital_put": 0.5211238785325601
+      }
+    },
+    {
+      "convention": "FWD_PREM_EXCLUDED",
+      "expected": {
+        "sigma_25p": 0.12,
+        "sigma_atm": 0.1,
+        "sigma_25c": 0.1,
+        "strike_25p": 1.0334964175936339,
+        "strike_atm": 1.09043858513245,
+        "strike_25c": 1.1465685527714742,
+        "weights_atm_rr_bf": [
+          0.999320926498137,
+          0.10969192285854963,
+          0.041907787477670704
+        ],
+        "weights_pillars": [
+          -0.08873802911971428,
+          0.9574131390204663,
+          0.13064581659738497
+        ],
+        "vv_call": 0.0255394510179723,
+        "vv_put": 0.03495851496349408,
+        "digital_call": 0.46378703033214563,
+        "digital_put": 0.5213249092686416
+      }
+    },
+    {
+      "convention": "SPOT_PREM_INCLUDED",
+      "expected": {
+        "sigma_25p": 0.12,
+        "sigma_atm": 0.1,
+        "sigma_25c": 0.1,
+        "strike_25p": 1.03070871526617,
+        "strike_atm": 1.09043858513245,
+        "strike_25c": 1.1431960010318525,
+        "weights_atm_rr_bf": [
+          0.9986007157273953,
+          0.11119662556806402,
+          0.06009769065156521
+        ],
+        "weights_pillars": [
+          -0.08114778024228142,
+          0.93850302507583,
+          0.14124547089384662
+        ],
+        "vv_call": 0.02558435099905396,
+        "vv_put": 0.03500341494457574,
+        "digital_call": 0.45953160211089744,
+        "digital_put": 0.5255803374899318
+      }
+    }
+  ]
+}
