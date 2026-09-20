@@ -58,10 +58,24 @@ VV smiles → constrained SSVI → GK target prices
           → Heston Fourier calibration → Heston MC → DNT
 ```
 
-The package is organized around `vv_pricer/` for Python orchestration,
-`src/cpp/` for C++ calculations and bindings, and `tests/` for Python and C++
-checks. The existing VV implementation is retained as the foundation for the
-new layers; extending the project does not require rewriting that engine.
+The existing VV implementation is retained as the foundation for the new
+layers; extending the project does not require rewriting that engine.
+
+### What the folders mean
+
+| Folder | Contents | Keep in Git? |
+| --- | --- | --- |
+| `vv_pricer/` | Python API and workflow. | Yes |
+| `src/cpp/` | C++ pricing engine and Python bindings. | Yes |
+| `tests/python/`, `tests/cpp/` | Test source code written for the project. | Yes |
+| `tests/fixtures/` | Fixed reference values used by regression tests. | Yes |
+| `docs/`, `scripts/` | Project documentation and repeatable commands. | Yes |
+| `_generated/` | Temporary compiler output and CTest run logs. | No |
+| `.venv/` | Locally installed Python packages and compiled extension. | No |
+
+CTest creates a folder named `Testing/` **inside** `_generated/cpp-tests/`
+when it runs. That folder contains its logs and results; the actual test code
+is only in `tests/`. You can delete `_generated/` at any time.
 
 ## Requirements and installation
 
@@ -77,7 +91,7 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
-The installation compiles `vv_cpp` into the local environment. `build/`,
+The installation compiles `vv_cpp` into the local environment. `_generated/`,
 `.venv/` and test caches are generated files and are ignored by Git. They can
 be removed and recreated; the source code is in `vv_pricer/` and `src/cpp/`.
 
