@@ -39,7 +39,8 @@ suite before editing. Existing uncommitted user changes must be preserved.
 ## Git contract
 
 - Never commit or push directly to `main` or `master`.
-- Use a branch named `codex/<task-id>-<short-slug>`.
+- Use a branch named `<task-id>-<short-slug>` (for example,
+  `M01-baseline`), without a `codex/` prefix.
 - Reuse the existing milestone branch if the task remains `IN_PROGRESS`.
 - Commit only after the relevant test gate passes.
 - Use the exact Conventional Commit suggestion in `TASK_QUEUE.md`, adjusted only

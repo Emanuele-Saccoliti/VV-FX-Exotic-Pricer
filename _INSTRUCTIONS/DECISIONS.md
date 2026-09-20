@@ -47,6 +47,7 @@
 ## ADR-006 — Codex pushes task branches but never merges
 
 - Status: accepted
-- Decision: each milestone uses `codex/<id>-<slug>` and is pushed after tests.
+- Decision: each milestone uses `<id>-<slug>` without a `codex/` prefix and is
+  pushed after tests.
 - Reason: preserves autonomous progress while keeping final integration under
   human control.

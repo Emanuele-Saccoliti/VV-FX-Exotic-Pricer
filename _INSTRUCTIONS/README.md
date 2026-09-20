@@ -34,7 +34,7 @@ pillars.
 1. Open the repository in Codex.
 2. Use the prompt in `prompts/DAILY_RUN.md`.
 3. Codex selects only the first ready milestone in `TASK_QUEUE.md`.
-4. It creates `codex/<task-id>-<slug>`, implements the task, runs relevant tests,
+4. It creates `<task-id>-<slug>`, implements the task, runs relevant tests,
    updates project state, commits, and pushes the branch.
 5. Review and merge the branch manually. The agent never merges or pushes to
    `main`.
@@ -60,9 +60,9 @@ an artificial commit merely to preserve a daily cadence.
 The project uses one branch per milestone and Conventional Commits, for example:
 
 ```bash
-git switch -c codex/M04-ssvi-kernel
+git switch -c M04-ssvi-kernel
 git commit -m "feat(surface): implement SSVI total variance kernel"
-git push -u origin codex/M04-ssvi-kernel
+git push -u origin M04-ssvi-kernel
 ```
 
 `git commit -v2` is not a Git versioning command. Version numbers belong in tags
