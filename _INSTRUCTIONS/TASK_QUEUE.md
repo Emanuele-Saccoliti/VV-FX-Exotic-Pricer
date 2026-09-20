@@ -7,7 +7,7 @@ next milestone `READY` only if all dependencies are `DONE`.
 
 ## M01 — Baseline characterization
 
-- State: IN_PROGRESS
+- State: DONE
 - Dependencies: none
 - Goal: freeze current Python/C++ behavior before extending the system.
 - Work:
@@ -23,7 +23,7 @@ next milestone `READY` only if all dependencies are `DONE`.
 
 ## M02 — Multi-tenor market contracts
 
-- State: PENDING
+- State: READY
 - Dependencies: M01
 - Goal: represent a term structure of FX ATM/RR/BF quotes and conventions.
 - Acceptance:
