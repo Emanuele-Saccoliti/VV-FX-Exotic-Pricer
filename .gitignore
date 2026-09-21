@@ -1,7 +1,32 @@
-.DS_Store
-.venv/
-build/
+# Local project instructions; keep them on this machine, outside GitHub.
+/_INSTRUCTIONS/
+
+# Python environments and package outputs.
+/.venv/
+/venv/
+/_generated/
+/build/
+/dist/
+/_skbuild/
+*.egg-info/
 __pycache__/
 *.py[cod]
+
+# Test, type-check and coverage caches.
 .pytest_cache/
-*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local editors and operating-system files.
+.DS_Store
+.idea/
+.vscode/
+
+# CMake outputs if configured outside _generated/.
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+Testing/

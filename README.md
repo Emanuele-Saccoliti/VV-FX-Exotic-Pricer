@@ -1,171 +1,186 @@
-# Hybrid Python/C++ Vanna-Volga FX Pricer
+# Hybrid Python/C++ FX Pricer
 
-This repository is a hybrid Python/C++ engine for pricing FX options with the **Vanna-Volga** method. It starts from spot, domestic and foreign interest rates, and market ATM, 25-delta Risk-Reversal and Butterfly quotes. It reconstructs the 25P and 25C wing volatilities, converts delta quotes into strikes under standard FX delta conventions, and computes analytic Vega, Vanna and Volga at the three market pillars. 
-Then, solves the 3-by-3 Vanna-Volga replication system, applies the resulting smile correction to Garman-Kohlhagen vanilla prices, and derives digital-option prices through strike differentiation and Richardson extrapolation. 
-Finally, produces vanilla and digital prices, reconstructed implied-volatility smiles and surfaces, and diagnostics for pricing bounds, parity, monotonicity, convexity and numerical stability.
+An FX options pricer built in layers. The working engine reconstructs a
+Vanna–Volga (VV) smile from ATM, 25-delta risk-reversal and butterfly quotes,
+then prices vanilla and digital options. Python provides the public workflow;
+C++ performs the numerical pricing through a `pybind11` extension.
 
-The engine includes:
+The next layers will project complete VV smiles onto a constrained SSVI
+surface, calibrate Heston to vanilla prices derived from that surface, and
+price a double-no-touch option with C++ Monte Carlo. Those layers are planned;
+the current release does **not** yet implement SSVI, Heston or DNT pricing.
 
-- validation of FX market inputs and reconstruction of the 25P and 25C wing
-  volatilities from ATM, risk-reversal and butterfly quotes;
-- Garman-Kohlhagen pricing, FX delta calculation and implied-volatility inversion;
-- support for spot premium-excluded, forward premium-excluded and spot
-  premium-included delta conventions;
-- numerical inversion from 25-delta quotes to their corresponding market
-  strikes;
-- analytic Vega, Vanna and Volga calculations in the compiled C++ backend;
-- construction and inversion of the 3-by-3 Vanna-Volga Greek matrix, including
-  condition-number, residual and backward-error diagnostics;
-- precomputation of the pillar volatility premiums and Greek matrix for each
-  market slice, avoiding repeated slice-level calculations;
-- Vanna-Volga pricing of vanilla calls and puts across individual strikes or
-  strike arrays;
-- pricing of digital calls and puts through centered strike differences and
-  Richardson extrapolation;
-- diagnostics for vanilla price bounds, digital price bounds, put-call parity,
-  digital parity, monotonicity and convexity;
-- an independent finite-difference and Richardson extrapolation used to
-  validate the analytic C++ Greeks;
-- visualization of reconstructed smiles, the 3D implied-volatility surface and
-  2D Vega, Vanna and Volga profiles.
+## Project status
 
-**Python and C++ responsibilities**
+| Layer | Status | What it delivers |
+| --- | --- | --- |
+| Vanna–Volga engine | Implemented | FX conventions, market pillars, GK and VV pricing, digitals, diagnostics and plots. |
+| M01 baseline | Verified | Frozen numerical outputs for all three delta conventions and a reproducible test command. |
+| Multi-tenor VV and SSVI | Planned | Complete VV smile per maturity, followed by a constrained SSVI projection. |
+| Heston calibration | Planned | C++ Fourier vanilla prices calibrated to GK targets from SSVI. |
+| Heston double-no-touch | Planned | C++ Monte Carlo price, standard error and confidence interval. |
 
-Python manages the public API and the higher-level pricing workflow. It's
-responsible for:
+This README grows with the implementation: each completed layer adds its
+inputs, public API, numerical conventions, example, validation evidence and
+known limitations here. Planned features stay marked as planned until their
+code and tests pass.
 
-- defining smile quotes and selecting the FX delta convention;
-- building pricing applications and market slices through the C++ interface;
-- exposing single-strike and batch pricing operations;
-- organizing arbitrage, bounds and parity diagnostics;
-- generating the smile, volatility-surface and Greek-profile plots;
-- running the demonstration workflow and Python integration tests.
+## Current capabilities
 
-C++ implements the calculations exposed to Python through the
-`vv_cpp` extension. It's responsible for:
+- Reconstruct 25P and 25C volatilities and strikes from ATM, RR25 and BF25
+  quotes under spot premium-excluded, forward premium-excluded or spot
+  premium-included FX delta conventions.
+- Price calls and puts with Garman–Kohlhagen (GK) and a VV correction matched
+  to the three market pillars. Invert GK prices to implied volatilities.
+- Price digital calls and puts from strike derivatives of the complete VV price
+  using centered differences and Richardson extrapolation.
+- Expose scalar and batch vanilla pricing, analytic Vega/Vanna/Volga, VV
+  replication weights and Greek-system condition diagnostics.
+- Check put-call and digital parity, theoretical price bounds, monotonicity and
+  convexity on supplied strike grids.
+- Plot VV smiles, a reconstructed volatility surface and Greek profiles. The
+  plotting demo can use several independent maturities; it is not yet a
+  calibrated cross-maturity SSVI surface.
 
-- Garman-Kohlhagen pricing, deltas and implied-volatility inversion;
-- converting delta quotes into 25P, ATM and 25C market strikes;
-- computing analytic Vega, Vanna and Volga;
-- constructing, checking and solving the Vanna-Volga Greek system;
-- precomputing pillar premiums and applying the Vanna-Volga correction;
-- pricing vanilla and digital options, including Richardson extrapolation for
-  strike derivatives;
-- evaluating pricing bounds, parity, monotonicity and convexity;
-- computing the independent finite-difference Greeks used by the validation
-  tests.
-
-In short, Python organizes the workflow and visualization, while C++ performs
-the pricing, Greek, linear-algebra and numerical-diagnostic calculations.
-
-**Requirements**
-
-- Python 3.11 or newer;
-- CMake 3.20 or newer;
-- a C++20 compiler.
-
-## Structure
+## Architecture
 
 ```text
-Hybrid/
-|-- CMakeLists.txt
-|-- pyproject.toml
-|-- run_demo.py
-|-- src/cpp/
-|   |-- include/vv/
-|   |-- src/
-|   `-- bindings/pybind_module.cpp
-|-- vv_pricer/
-|   |-- application.py
-|   |-- cpp_engine.py
-|   |-- domain.py
-|   |-- market.py
-|   |-- pricer.py
-|   |-- plotting.py
-|   `-- demo.py
-`-- tests/
-    |-- cpp/
-    `-- python/
+ATM / RR25 / BF25 market quotes
+          ↓
+Python: quote objects, FX convention, application and reports
+          ↓
+C++: delta-to-strike, GK, Greeks and Vanna–Volga engine
+          ↓
+VV vanilla and digital prices, smile plots and diagnostics
+
+Planned extension:
+VV smiles → constrained SSVI → GK target prices
+          → Heston Fourier calibration → Heston MC → DNT
 ```
 
-## Build
+The existing VV implementation is retained as the foundation for the new
+layers; extending the project does not require rewriting that engine.
+
+### What the folders mean
+
+| Folder | Contents | Keep in Git? |
+| --- | --- | --- |
+| `vv_pricer/` | Python API and workflow. | Yes |
+| `src/cpp/` | C++ pricing engine and Python bindings. | Yes |
+| `tests/python/`, `tests/cpp/` | Test source code written for the project. | Yes |
+| `tests/fixtures/` | Fixed reference values used by regression tests. | Yes |
+| `docs/`, `scripts/` | Project documentation and repeatable commands. | Yes |
+| `_generated/` | Temporary compiler output and CTest run logs. | No |
+| `.venv/` | Locally installed Python packages and compiled extension. | No |
+
+CTest creates a folder named `Testing/` **inside** `_generated/cpp-tests/`
+when it runs. That folder contains its logs and results; the actual test code
+is only in `tests/`. You can delete `_generated/` at any time.
+
+## Requirements and installation
+
+- Python 3.11 or newer
+- CMake 3.20 or newer
+- A C++20 compiler
 
 From this directory:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-The editable installation compiles the `vv_cpp` extension with CMake and a
-C++20 compiler.
+The installation compiles `vv_cpp` into the local environment. `_generated/`,
+`.venv/` and test caches are generated files and are ignored by Git. They can
+be removed and recreated; the source code is in `vv_pricer/` and `src/cpp/`.
 
-## Run
-
-```bash
-source .venv/bin/activate
-python run_demo.py
-```
-
-Other conventions:
+## Run the current pricer
 
 ```bash
-python run_demo.py FWD_PREM_EXCLUDED
-python run_demo.py SPOT_PREM_INCLUDED --plots
+python -m vv_pricer
+python -m vv_pricer FWD_PREM_EXCLUDED
+python -m vv_pricer SPOT_PREM_INCLUDED --plots
 ```
 
-The `--plots` view includes:
+The default convention is `SPOT_PREM_EXCLUDED`. The equivalent installed
+command is `vv-pricer`; `run_demo.py` is also retained for compatibility.
 
-- the reconstructed Vanna-Volga smile;
-- a 3D reconstructed VV volatility surface with its market pillars;
-- 2D Vega, Vanna and Volga profiles for each maturity.
-
-The surface uses log-moneyness $\log(K/F)$ and recovers continuous implied
-volatilities from VV prices. Every maturity spans its complete 25P-to-ATM-to-25C
-interval, and the quoted market pillars are shown directly on the surface.
-
-## Python API
+### Python API
 
 ```python
 from vv_pricer import DeltaConvention, SmileQuote, build_application
 
 application = build_application(DeltaConvention.SPOT_PREM_EXCLUDED)
-
 market_slice = application.builder.build(
-    1.085,
-    0.03,
-    0.02,
-    SmileQuote(T=0.5, sigma_atm=0.10, rr25=-0.02, bf25=0.01),
+    spot=1.085,
+    domestic_rate=0.03,
+    foreign_rate=0.02,
+    quote=SmileQuote(T=0.5, sigma_atm=0.10, rr25=-0.02, bf25=0.01),
 )
 
-call = application.pricer.price_vanilla(market_slice, True, 1.10)
-put = application.pricer.price_vanilla(market_slice, False, 1.10)
-digital_call = application.pricer.price_digital_call(market_slice, 1.10)
-
-put_call_check = application.pricer.check_put_call_parity(
-    market_slice,
-    1.10,
-)
+strike = 1.10
+call = application.pricer.price_vanilla(market_slice, True, strike)
+put = application.pricer.price_vanilla(market_slice, False, strike)
+digital_call = application.pricer.price_digital_call(market_slice, strike)
+weights = application.pricer.weights(market_slice, strike)
 ```
 
-## Tests
+Here `T` is in years; rates and volatilities are annualized decimal fractions.
+Spot and strike are domestic currency per unit of foreign currency. Rates are
+continuously compounded and the forward is
+`F_T = S_0 exp((r_d - r_f) T)`.
 
-Python integration tests:
+## From FX quotes to VV prices
+
+The three market volatilities are
+
+```text
+sigma_25P = sigma_ATM + BF25 - RR25 / 2
+sigma_25C = sigma_ATM + BF25 + RR25 / 2
+```
+
+The ATM strike is the forward. Each wing strike solves the selected 25-delta
+convention at its own wing volatility. For a strike `K`, the VV engine matches
+the target option's Vega, Vanna and Volga to the three pillars and applies the
+resulting correction to its ATM-volatility GK price:
+
+```text
+V_VV(K) = V_GK(K, sigma_ATM)
+        + w_25P(K) [V_GK(K_25P, sigma_25P) - V_GK(K_25P, sigma_ATM)]
+        + w_25C(K) [V_GK(K_25C, sigma_25C) - V_GK(K_25C, sigma_ATM)]
+```
+
+Pillar repricing is checked against GK at the quoted volatilities. Digital
+prices use numerical strike derivatives of the *full* VV vanilla price. The
+finite strike-grid checks help detect local arbitrage violations but do not
+prove that the entire VV smile is arbitrage-free.
+
+## Validation
+
+After installation, run the Python tests without recompiling:
 
 ```bash
 python -m pytest -q
 ```
 
-C++ tests:
+For a full clean-build check, including the C++ tests and CLI demo:
 
 ```bash
-cmake -S . -B build/cmake \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DVV_BUILD_PYTHON=OFF \
-  -DVV_BUILD_TESTS=ON
-
-cmake --build build/cmake --parallel
-ctest --test-dir build/cmake --output-on-failure
+PYTHON_BIN=.venv/bin/python bash scripts/check_baseline.sh
 ```
+
+M01 froze 25P/ATM/25C volatilities and strikes, both VV weight bases, vanilla
+prices and digital prices for all three supported delta conventions. The
+[baseline record](docs/baseline.md) explains the numerical conventions,
+fixture provenance and tolerances. The frozen values are regression anchors
+from the existing engine, alongside independent parity, Greek and pillar
+repricing checks.
+
+## Next layer
+
+The next implementation step is a validated multi-tenor FX quote contract.
+Subsequent work will sample each complete VV smile, fit SSVI to those VV total
+variances with priority on the original market pillars, and keep the fitted
+surface within explicit static no-arbitrage constraints. Each delivered step
+will update the status table and add its reproducible example and tests here.
