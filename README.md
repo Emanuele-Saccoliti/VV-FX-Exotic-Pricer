@@ -16,6 +16,7 @@ the current release does **not** yet implement SSVI, Heston or DNT pricing.
 | --- | --- | --- |
 | Vanna–Volga engine | Implemented | FX conventions, market pillars, GK and VV pricing, digitals, diagnostics and plots. |
 | M01 baseline | Verified | Frozen numerical outputs for all three delta conventions and a reproducible test command. |
+| M02 market contracts | Implemented | Immutable multi-tenor ATM/RR/BF inputs with explicit rates and conventions. |
 | Multi-tenor VV and SSVI | Planned | Complete VV smile per maturity, followed by a constrained SSVI projection. |
 | Heston calibration | Planned | C++ Fourier vanilla prices calibrated to GK targets from SSVI. |
 | Heston double-no-touch | Planned | C++ Monte Carlo price, standard error and confidence interval. |
@@ -131,6 +132,38 @@ Spot and strike are domestic currency per unit of foreign currency. Rates are
 continuously compounded and the forward is
 `F_T = S_0 exp((r_d - r_f) T)`.
 
+### Multi-tenor market contract
+
+`FxMarketTermStructure` is the validated input boundary for a term structure.
+It holds one positive spot, explicit delta and ATM conventions, and one
+`TenorMarketQuote` per maturity. Each tenor pairs a `SmileQuote` with its own
+continuously compounded domestic and foreign rates. Maturities are stored in
+strictly increasing order and must be unique.
+
+```python
+from vv_pricer import (
+    AtmConvention,
+    DeltaConvention,
+    FxMarketTermStructure,
+    SmileQuote,
+    TenorMarketQuote,
+)
+
+market = FxMarketTermStructure.from_tenors(
+    spot=1.085,
+    delta_convention=DeltaConvention.SPOT_PREM_EXCLUDED,
+    atm_convention=AtmConvention.FORWARD,
+    tenors=(
+        TenorMarketQuote(SmileQuote(0.25, 0.095, -0.012, 0.004), 0.030, 0.020),
+        TenorMarketQuote(SmileQuote(1.00, 0.110, -0.018, 0.007), 0.032, 0.021),
+    ),
+)
+```
+
+The current engine supports `AtmConvention.FORWARD`, consistent with its
+existing forward-ATM strike construction. This contract does not yet sample or
+price all tenors; M03 will turn each stored tenor into a complete VV smile.
+
 ## From FX quotes to VV prices
 
 The three market volatilities are
@@ -179,8 +212,7 @@ repricing checks.
 
 ## Next layer
 
-The next implementation step is a validated multi-tenor FX quote contract.
-Subsequent work will sample each complete VV smile, fit SSVI to those VV total
-variances with priority on the original market pillars, and keep the fitted
-surface within explicit static no-arbitrage constraints. Each delivered step
-will update the status table and add its reproducible example and tests here.
+The next implementation step is a reusable VV smile sampler. It will create a
+complete smile for every stored maturity, keep the 25P/ATM/25C pillars separate
+from synthetic samples, and document the reliable wing cutoffs before SSVI
+work begins.
