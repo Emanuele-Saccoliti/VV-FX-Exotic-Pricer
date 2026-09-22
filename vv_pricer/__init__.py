@@ -4,6 +4,13 @@ from .cpp_engine import CppQuantitativeEngine
 from .domain import FxMarketTermStructure, SmileQuote, TenorMarketQuote
 from .market import MarketSliceBuilder
 from .pricer import VannaVolgaPricer
+from .surface import (
+    SmilePointProvenance,
+    VannaVolgaSmileSampler,
+    VvSmileSample,
+    VvSmileSamplePoint,
+    VvSmileSamplingConfig,
+)
 
 __all__ = [
     "AtmConvention",
@@ -12,9 +19,14 @@ __all__ = [
     "FxMarketTermStructure",
     "MarketSliceBuilder",
     "PricingApplication",
+    "SmilePointProvenance",
     "SmileQuote",
     "TenorMarketQuote",
+    "VannaVolgaSmileSampler",
     "VannaVolgaPricer",
+    "VvSmileSample",
+    "VvSmileSamplePoint",
+    "VvSmileSamplingConfig",
     "build_application",
 ]
 
