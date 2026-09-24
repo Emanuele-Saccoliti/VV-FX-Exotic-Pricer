@@ -17,7 +17,8 @@ the current release does **not** yet implement SSVI, Heston or DNT pricing.
 | Vanna–Volga engine | Implemented | FX conventions, market pillars, GK and VV pricing, digitals, diagnostics and plots. |
 | M01 baseline | Verified | Frozen numerical outputs for all three delta conventions and a reproducible test command. |
 | M02 market contracts | Implemented | Immutable multi-tenor ATM/RR/BF inputs with explicit rates and conventions. |
-| Multi-tenor VV and SSVI | Planned | Complete VV smile per maturity, followed by a constrained SSVI projection. |
+| M03 multi-tenor VV | Implemented | Reusable complete-smile samples with liquid-pillar provenance and explicit reliable-wing cutoffs. |
+| SSVI surface | Planned | Constrained cross-maturity projection of sampled VV total variances. |
 | Heston calibration | Planned | C++ Fourier vanilla prices calibrated to GK targets from SSVI. |
 | Heston double-no-touch | Planned | C++ Monte Carlo price, standard error and confidence interval. |
 
@@ -42,6 +43,9 @@ code and tests pass.
 - Plot VV smiles, a reconstructed volatility surface and Greek profiles. The
   plotting demo can use several independent maturities; it is not yet a
   calibrated cross-maturity SSVI surface.
+- Sample a complete VV smile for every tenor in `FxMarketTermStructure`,
+  returning strikes, forwards, implied volatilities, total variances and the
+  provenance of every liquid or synthetic observation.
 
 ## Architecture
 
@@ -161,8 +165,33 @@ market = FxMarketTermStructure.from_tenors(
 ```
 
 The current engine supports `AtmConvention.FORWARD`, consistent with its
-existing forward-ATM strike construction. This contract does not yet sample or
-price all tenors; M03 will turn each stored tenor into a complete VV smile.
+existing forward-ATM strike construction.
+
+### Multi-tenor VV smile sampling
+
+`VannaVolgaSmileSampler.sample` builds all stored tenors in one call. Each
+`VvSmileSample` is ordered by strike and exposes `strikes`,
+`implied_volatilities`, `total_variances`, `forward`, and `provenances`.
+`liquid_pillars` selects the original 25P/ATM/25C inputs; `synthetic_points`
+selects observations obtained by repricing the complete VV smile and inverting
+the corresponding out-of-the-money GK price.
+
+```python
+from vv_pricer import VannaVolgaSmileSampler
+
+samples = VannaVolgaSmileSampler().sample(market)
+for sample in samples:
+    print(sample.maturity, sample.forward, sample.strikes)
+```
+
+The deterministic default grid is expressed in forward log-moneyness. It
+contains all three liquid pillars and three synthetic interior points in each
+anchor interval. The reliable-region cutoff extends only 50% of the relevant
+25-delta-to-ATM distance beyond each 25-delta pillar. Both the sampling density
+and extension fraction are configurable with `VvSmileSamplingConfig`, and the
+actual lower and upper cutoffs are stored on every result. This cutoff is a
+documented VV reliability heuristic, not a proof of absence of static
+arbitrage; later SSVI calibration must still enforce its own constraints.
 
 ## From FX quotes to VV prices
 
@@ -212,7 +241,6 @@ repricing checks.
 
 ## Next layer
 
-The next implementation step is a reusable VV smile sampler. It will create a
-complete smile for every stored maturity, keep the 25P/ATM/25C pillars separate
-from synthetic samples, and document the reliable wing cutoffs before SSVI
-work begins.
+The next implementation step is the vectorized SSVI total-variance kernel and
+its validated parameter objects. Calibration and no-arbitrage constraints
+remain later milestones.
