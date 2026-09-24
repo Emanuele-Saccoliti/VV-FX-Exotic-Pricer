@@ -36,3 +36,16 @@ class DeltaConvention(Enum):
 
     def __str__(self) -> str:
         return self.name
+
+
+class AtmConvention(Enum):
+    """ATM-strike conventions supported by the market-data contract.
+
+    The current Vanna-Volga engine defines ATM at the forward. Further FX ATM
+    conventions require matching strike construction in the pricing engine.
+    """
+
+    FORWARD = "FORWARD"
+
+    def __str__(self) -> str:
+        return self.name
