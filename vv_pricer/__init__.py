@@ -6,10 +6,13 @@ from .market import MarketSliceBuilder
 from .pricer import VannaVolgaPricer
 from .surface import (
     SmilePointProvenance,
+    SsviPowerLawParameters,
     VannaVolgaSmileSampler,
     VvSmileSample,
     VvSmileSamplePoint,
     VvSmileSamplingConfig,
+    ssvi_power_law_phi,
+    ssvi_total_variance,
 )
 
 __all__ = [
@@ -20,6 +23,7 @@ __all__ = [
     "MarketSliceBuilder",
     "PricingApplication",
     "SmilePointProvenance",
+    "SsviPowerLawParameters",
     "SmileQuote",
     "TenorMarketQuote",
     "VannaVolgaSmileSampler",
@@ -28,6 +32,8 @@ __all__ = [
     "VvSmileSamplePoint",
     "VvSmileSamplingConfig",
     "build_application",
+    "ssvi_power_law_phi",
+    "ssvi_total_variance",
 ]
 
 __version__ = "0.3.0"
