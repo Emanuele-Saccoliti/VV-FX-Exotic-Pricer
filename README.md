@@ -5,10 +5,11 @@ Vanna–Volga (VV) smile from ATM, 25-delta risk-reversal and butterfly quotes,
 then prices vanilla and digital options. Python provides the public workflow;
 C++ performs the numerical pricing through a `pybind11` extension.
 
-The next layers will project complete VV smiles onto a constrained SSVI
-surface, calibrate Heston to vanilla prices derived from that surface, and
-price a double-no-touch option with C++ Monte Carlo. Those layers are planned;
-the current release does **not** yet implement SSVI, Heston or DNT pricing.
+The next layers will use the implemented SSVI kernel to project complete VV
+smiles onto a constrained surface, calibrate Heston to vanilla prices derived
+from that surface, and price a double-no-touch option with C++ Monte Carlo.
+Those layers are planned; the current release does **not** yet implement SSVI
+constraints or calibration, Heston, or DNT pricing.
 
 ## Project status
 
@@ -18,7 +19,8 @@ the current release does **not** yet implement SSVI, Heston or DNT pricing.
 | M01 baseline | Verified | Frozen numerical outputs for all three delta conventions and a reproducible test command. |
 | M02 market contracts | Implemented | Immutable multi-tenor ATM/RR/BF inputs with explicit rates and conventions. |
 | M03 multi-tenor VV | Implemented | Reusable complete-smile samples with liquid-pillar provenance and explicit reliable-wing cutoffs. |
-| SSVI surface | Planned | Constrained cross-maturity projection of sampled VV total variances. |
+| SSVI kernel | Implemented | Vectorized power-law SSVI total variance with validated parameters. |
+| SSVI constraints and calibration | Planned | Constrained cross-maturity projection of sampled VV total variances. |
 | Heston calibration | Planned | C++ Fourier vanilla prices calibrated to GK targets from SSVI. |
 | Heston double-no-touch | Planned | C++ Monte Carlo price, standard error and confidence interval. |
 
@@ -46,6 +48,8 @@ code and tests pass.
 - Sample a complete VV smile for every tenor in `FxMarketTermStructure`,
   returning strikes, forwards, implied volatilities, total variances and the
   provenance of every liquid or synthetic observation.
+- Evaluate scalar or broadcast-array SSVI total variances with an immutable,
+  validated power-law parameter object.
 
 ## Architecture
 
@@ -193,6 +197,36 @@ actual lower and upper cutoffs are stored on every result. This cutoff is a
 documented VV reliability heuristic, not a proof of absence of static
 arbitrage; later SSVI calibration must still enforce its own constraints.
 
+### SSVI total-variance kernel
+
+`ssvi_total_variance` evaluates the SSVI slice in forward log-moneyness
+`k = log(K/F)` for positive ATM total variance `theta`. The initial shape
+family is `phi(theta) = eta * theta**(-gamma)`, with immutable validated
+`SsviPowerLawParameters`. Scalar inputs return a float; NumPy-compatible array
+inputs broadcast and return a `float64` array.
+
+```text
+w(k, theta) = theta/2 * [1 + rho*phi(theta)*k
+                  + sqrt((phi(theta)*k + rho)^2 + 1 - rho^2)]
+```
+
+```python
+import numpy as np
+
+from vv_pricer import SsviPowerLawParameters, ssvi_total_variance
+
+parameters = SsviPowerLawParameters(rho=-0.35, eta=1.1, gamma=0.25)
+log_moneyness = np.array([-0.20, 0.0, 0.20])
+total_variance = ssvi_total_variance(log_moneyness, 0.04, parameters)
+```
+
+The parameter object enforces `-1 < rho < 1`, `eta > 0`, and
+`0 < gamma <= 0.5`, following the power-law family in
+[Gatheral and Jacquier](https://arxiv.org/abs/1204.0646). These are local
+parameter-domain checks, not a complete static-arbitrage certificate.
+Butterfly and calendar constraints, surface diagnostics, and calibration are
+deliberately deferred to later milestones.
+
 ## From FX quotes to VV prices
 
 The three market volatilities are
@@ -241,6 +275,5 @@ repricing checks.
 
 ## Next layer
 
-The next implementation step is the vectorized SSVI total-variance kernel and
-its validated parameter objects. Calibration and no-arbitrage constraints
-remain later milestones.
+The next implementation step is to encode SSVI no-arbitrage constraints and
+diagnostics. Calibration remains a later milestone.
