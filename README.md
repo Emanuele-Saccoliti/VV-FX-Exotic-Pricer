@@ -70,22 +70,6 @@ VV smiles → constrained SSVI → GK target prices
 The existing VV implementation is retained as the foundation for the new
 layers; extending the project does not require rewriting that engine.
 
-### What the folders mean
-
-| Folder | Contents | Keep in Git? |
-| --- | --- | --- |
-| `vv_pricer/` | Python API and workflow. | Yes |
-| `src/cpp/` | C++ pricing engine and Python bindings. | Yes |
-| `tests/python/`, `tests/cpp/` | Test source code written for the project. | Yes |
-| `tests/fixtures/` | Fixed reference values used by regression tests. | Yes |
-| `docs/`, `scripts/` | Project documentation and repeatable commands. | Yes |
-| `_generated/` | Temporary compiler output and CTest run logs. | No |
-| `.venv/` | Locally installed Python packages and compiled extension. | No |
-
-CTest creates a folder named `Testing/` **inside** `_generated/cpp-tests/`
-when it runs. That folder contains its logs and results; the actual test code
-is only in `tests/`. You can delete `_generated/` at any time.
-
 ## Requirements and installation
 
 - Python 3.11 or newer
