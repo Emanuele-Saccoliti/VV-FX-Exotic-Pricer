@@ -5,11 +5,11 @@ Vanna–Volga (VV) smile from ATM, 25-delta risk-reversal and butterfly quotes,
 then prices vanilla and digital options. Python provides the public workflow;
 C++ performs the numerical pricing through a `pybind11` extension.
 
-The next layers will use the implemented SSVI kernel to project complete VV
-smiles onto a constrained surface, calibrate Heston to vanilla prices derived
-from that surface, and price a double-no-touch option with C++ Monte Carlo.
-Those layers are planned; the current release does **not** yet implement SSVI
-constraints or calibration, Heston, or DNT pricing.
+The next layers will use the implemented SSVI kernel and no-arbitrage
+diagnostics to project complete VV smiles onto a constrained surface, calibrate
+Heston to vanilla prices derived from that surface, and price a
+double-no-touch option with C++ Monte Carlo. Calibration, Heston, and DNT
+pricing remain planned.
 
 ## Project status
 
@@ -20,7 +20,8 @@ constraints or calibration, Heston, or DNT pricing.
 | M02 market contracts | Implemented | Immutable multi-tenor ATM/RR/BF inputs with explicit rates and conventions. |
 | M03 multi-tenor VV | Implemented | Reusable complete-smile samples with liquid-pillar provenance and explicit reliable-wing cutoffs. |
 | SSVI kernel | Implemented | Vectorized power-law SSVI total variance with validated parameters. |
-| SSVI constraints and calibration | Planned | Constrained cross-maturity projection of sampled VV total variances. |
+| SSVI constraints | Implemented | Executable calendar/butterfly inequalities, wing slopes, constraint slack, and dense-grid call checks. |
+| SSVI calibration | Planned | Constrained cross-maturity projection of sampled VV total variances. |
 | Heston calibration | Planned | C++ Fourier vanilla prices calibrated to GK targets from SSVI. |
 | Heston double-no-touch | Planned | C++ Monte Carlo price, standard error and confidence interval. |
 
@@ -50,6 +51,9 @@ code and tests pass.
   provenance of every liquid or synthetic observation.
 - Evaluate scalar or broadcast-array SSVI total variances with an immutable,
   validated power-law parameter object.
+- Diagnose or reject a power-law SSVI term structure using analytic calendar
+  and butterfly constraints, Lee wing slopes, and normalized call-price
+  monotonicity, convexity, and bound checks on a configurable dense grid.
 
 ## Architecture
 
@@ -223,9 +227,49 @@ total_variance = ssvi_total_variance(log_moneyness, 0.04, parameters)
 The parameter object enforces `-1 < rho < 1`, `eta > 0`, and
 `0 < gamma <= 0.5`, following the power-law family in
 [Gatheral and Jacquier](https://arxiv.org/abs/1204.0646). These are local
-parameter-domain checks, not a complete static-arbitrage certificate.
-Butterfly and calendar constraints, surface diagnostics, and calibration are
-deliberately deferred to later milestones.
+parameter-domain checks. Use the surface diagnostics below for an executable
+static no-arbitrage certificate over a supplied ATM term structure.
+
+### SSVI no-arbitrage diagnostics
+
+`diagnose_ssvi_no_arbitrage` evaluates the sufficient calendar and butterfly
+conditions from Gatheral and Jacquier (2014), Theorems 4.1 and 4.2, at each
+supplied ATM total variance. It returns every inequality as a named slack,
+along with left/right asymptotic total-variance slopes and independent
+dense-grid call-price checks. `require_ssvi_no_arbitrage` returns the same
+result or raises `ValueError` with the violated condition names.
+
+```python
+from vv_pricer import (
+    SsviPowerLawParameters,
+    diagnose_ssvi_no_arbitrage,
+)
+
+parameters = SsviPowerLawParameters(rho=-0.35, eta=0.8, gamma=0.25)
+diagnostics = diagnose_ssvi_no_arbitrage(
+    maturities=[0.25, 0.5, 1.0, 2.0],
+    atm_total_variances=[0.0025, 0.0055, 0.012, 0.026],
+    parameters=parameters,
+)
+assert diagnostics.is_admissible
+print(diagnostics.minimum_constraint_slack)
+print(diagnostics.slices[-1].left_wing_slope)
+```
+
+Maturities are positive, strictly increasing year fractions. ATM total
+variances are positive and must be non-decreasing; the reported calendar
+slacks are the consecutive slopes `delta(theta) / delta(T)`. Certification
+between supplied maturities therefore assumes a non-decreasing interpolation,
+such as piecewise linear interpolation in ATM total variance.
+
+For each slice, the implementation enforces
+`theta*phi(theta)*(1+abs(rho)) < 4` and
+`theta*phi(theta)**2*(1+abs(rho)) <= 4`. The first condition is equivalent to
+both Lee wing slopes being strictly below 2. The configurable numerical check
+uses normalized undiscounted Black calls with forward equal to 1 and checks
+monotonicity and convexity against `K/F = exp(k)`, not against an equally
+spaced log-strike index. See [SSVI constraint design and validation](docs/ssvi_constraints.md)
+for formulas, tolerances, evidence, and limitations.
 
 ## From FX quotes to VV prices
 
@@ -275,5 +319,6 @@ repricing checks.
 
 ## Next layer
 
-The next implementation step is to encode SSVI no-arbitrage constraints and
-diagnostics. Calibration remains a later milestone.
+The next implementation step is the deterministic global SSVI calibration of
+sampled VV total variances, using these executable constraints and preserving
+the higher priority of liquid 25P/ATM/25C pillars.
